@@ -79,8 +79,8 @@ print_status "Starting MySQL service..."
 systemctl start mysql
 sleep 3
 
-# Detect MySQL root password
-print_status "Detecting MySQL root password..."
+# Detect MySQL/MariaDB root password
+print_status "Detecting MySQL/MariaDB root password..."
 MYSQL_ROOT_PASS=""
 for pass in "" "root" "password" "mysql" "$DB_PASS"; do
     if mysql -u root -p"$pass" -e "SELECT 1;" 2>/dev/null; then
@@ -90,23 +90,46 @@ for pass in "" "root" "password" "mysql" "$DB_PASS"; do
 done
 
 if [ -z "$MYSQL_ROOT_PASS" ]; then
-    print_warning "Resetting MySQL root password..."
-    systemctl stop mysql
-    mysqld_safe --skip-grant-tables --skip-networking &
-    MYSQL_PID=$!
-    sleep 5
-    
-    mysql -u root << EOF
+    print_warning "Resetting MySQL/MariaDB root password..."
+
+    # Check if MariaDB or MySQL
+    if command -v mariadb >/dev/null 2>&1 || systemctl is-enabled mariadb 2>/dev/null; then
+        print_status "Detected MariaDB..."
+        systemctl stop mariadb
+        systemctl set-environment MYSQLD_OPTS="--skip-grant-tables --skip-networking"
+        systemctl start mariadb
+        sleep 5
+
+        mysql -u root << EOF
+USE mysql;
+UPDATE user SET password=PASSWORD('$DB_PASS') WHERE User='root';
+UPDATE user SET plugin='mysql_native_password' WHERE User='root';
+FLUSH PRIVILEGES;
+EOF
+
+        systemctl unset-environment MYSQLD_OPTS
+        systemctl restart mariadb
+        sleep 3
+    else
+        print_status "Detected MySQL..."
+        systemctl stop mysql
+        mysqld_safe --skip-grant-tables --skip-networking &
+        MYSQL_PID=$!
+        sleep 5
+
+        mysql -u root << EOF
 USE mysql;
 UPDATE user SET authentication_string=PASSWORD('$DB_PASS') WHERE User='root';
 UPDATE user SET plugin='mysql_native_password' WHERE User='root';
 FLUSH PRIVILEGES;
 EOF
-    
-    kill $MYSQL_PID 2>/dev/null || true
-    sleep 2
-    systemctl start mysql
-    sleep 3
+
+        kill $MYSQL_PID 2>/dev/null || true
+        sleep 2
+        systemctl start mysql
+        sleep 3
+    fi
+
     MYSQL_ROOT_PASS="$DB_PASS"
 fi
 

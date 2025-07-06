@@ -67,25 +67,49 @@ done
 
 if [ -z "$MYSQL_ROOT_PASS" ]; then
     print_warning "Cannot connect to MySQL with common passwords, trying to reset..."
-    
-    # Reset MySQL root password
-    systemctl stop mysql
-    mysqld_safe --skip-grant-tables --skip-networking &
-    MYSQL_PID=$!
-    sleep 5
-    
-    mysql -u root << EOF
+
+    # Reset MySQL/MariaDB root password (compatible with both)
+    systemctl stop mysql mariadb 2>/dev/null || true
+    sleep 2
+
+    # Check if it's MariaDB or MySQL
+    if command -v mariadb >/dev/null 2>&1; then
+        print_status "Detected MariaDB, using MariaDB-specific reset..."
+
+        # MariaDB reset method
+        systemctl set-environment MYSQLD_OPTS="--skip-grant-tables --skip-networking"
+        systemctl start mariadb
+        sleep 5
+
+        mysql -u root << EOF
+USE mysql;
+UPDATE user SET password=PASSWORD('$DB_PASS') WHERE User='root';
+UPDATE user SET plugin='mysql_native_password' WHERE User='root';
+FLUSH PRIVILEGES;
+EOF
+
+        systemctl unset-environment MYSQLD_OPTS
+        systemctl restart mariadb
+        sleep 3
+    else
+        # MySQL reset method
+        mysqld_safe --skip-grant-tables --skip-networking &
+        MYSQL_PID=$!
+        sleep 5
+
+        mysql -u root << EOF
 USE mysql;
 UPDATE user SET authentication_string=PASSWORD('$DB_PASS') WHERE User='root';
 UPDATE user SET plugin='mysql_native_password' WHERE User='root';
 FLUSH PRIVILEGES;
 EOF
-    
-    kill $MYSQL_PID 2>/dev/null || true
-    sleep 2
-    systemctl start mysql
-    sleep 3
-    
+
+        kill $MYSQL_PID 2>/dev/null || true
+        sleep 2
+        systemctl start mysql
+        sleep 3
+    fi
+
     MYSQL_ROOT_PASS="$DB_PASS"
 fi
 

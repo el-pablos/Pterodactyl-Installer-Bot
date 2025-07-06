@@ -25,8 +25,22 @@ const subdomain = {
   }
 };
 
-// Initialize bot
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+// Initialize bot with enhanced error handling
+const bot = new TelegramBot(BOT_TOKEN, {
+  polling: {
+    interval: 1000,
+    autoStart: true,
+    params: {
+      timeout: 10
+    }
+  },
+  request: {
+    agentOptions: {
+      keepAlive: true,
+      family: 4
+    }
+  }
+});
 
 // Helper functions
 const isOwner = (userId) => userId === OWNER_ID;
@@ -42,9 +56,32 @@ const log = (message, type = 'info') => {
   console.log(`[${timestamp}] [${platform}] [${type.toUpperCase()}] ${message}`);
 };
 
-log('🚀 Pterodactyl Panel Installer Bot Started!', 'info');
-log(`Platform: ${os.platform()} ${os.arch()}`, 'info');
-log(`Node.js: ${process.version}`, 'info');
+// Validate bot token before starting
+async function validateBot() {
+  try {
+    const me = await bot.getMe();
+    log(`🚀 Bot validated: @${me.username} (${me.first_name})`, 'info');
+    return true;
+  } catch (error) {
+    log(`❌ Bot validation failed: ${error.message}`, 'error');
+    log('Please check your BOT_TOKEN in bot.js', 'error');
+    return false;
+  }
+}
+
+// Start bot with validation
+validateBot().then((isValid) => {
+  if (isValid) {
+    log('🚀 Pterodactyl Panel Installer Bot Started!', 'info');
+    log(`Platform: ${os.platform()} ${os.arch()}`, 'info');
+    log(`Node.js: ${process.version}`, 'info');
+  } else {
+    process.exit(1);
+  }
+}).catch((error) => {
+  log(`Bot startup error: ${error.message}`, 'error');
+  process.exit(1);
+});
 log('📋 Available commands:', 'info');
 log('- /installpanel - Install Pterodactyl panel', 'info');
 log('- /uninstallpanel - Uninstall Pterodactyl panel', 'info');
@@ -1970,7 +2007,7 @@ bot.onText(/\/masterfix (.+)/, async (msg, match) => {
     await sendMessage(chatId, "🔧 *Starting Master Fix...*\n⚡ Fixing ALL panel issues automatically", { parse_mode: 'Markdown' });
 
     try {
-      logStep("Master Fix Started", "Complete panel repair in progress");
+      log("Master Fix Started: Complete panel repair in progress", 'info');
 
       // Create and upload master fix script
       const masterFixScript = `
@@ -2261,14 +2298,36 @@ EOF`);
   }).connect(connSettings);
 });
 
-// Cross-platform error handling
+// Enhanced cross-platform error handling
 bot.on('polling_error', (error) => {
-  log(`Polling error: ${error.message}`, 'error');
-  
+  log(`Polling error: ${error.code || 'UNKNOWN'} - ${error.message}`, 'error');
+
   // Handle different types of polling errors
-  if (error.code === 'EFATAL') {
-    log('Fatal error detected, attempting restart...', 'warn');
-    process.exit(1); // Let process manager restart
+  if (error.code === 'EFATAL' || error.message.includes('EFATAL')) {
+    log('Fatal error detected, restarting bot...', 'warn');
+
+    // Stop current polling
+    bot.stopPolling();
+
+    // Wait and restart
+    setTimeout(() => {
+      log('Attempting to restart bot polling...', 'info');
+      bot.startPolling()
+        .then(() => log('Bot polling restarted successfully', 'info'))
+        .catch((restartError) => {
+          log(`Failed to restart polling: ${restartError.message}`, 'error');
+          process.exit(1);
+        });
+    }, 5000);
+  } else if (error.code === 'ETELEGRAM') {
+    log('Telegram API error, retrying in 10 seconds...', 'warn');
+    setTimeout(() => {
+      bot.startPolling().catch(() => {
+        log('Failed to reconnect to Telegram', 'error');
+      });
+    }, 10000);
+  } else {
+    log('Unknown polling error, continuing...', 'warn');
   }
 });
 
