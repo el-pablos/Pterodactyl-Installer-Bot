@@ -1572,7 +1572,7 @@ bot.onText(/\/uninstallpanel (.+)/, async (msg, match) => {
     await sendMessage(chatId, "🔄 *Memproses uninstall server panel...*\n⏳ Tunggu 5-10 menit hingga proses selesai", { parse_mode: 'Markdown' });
     
     try {
-      logStep("Starting uninstall process", "Removing Pterodactyl components");
+      log("Starting uninstall process: Removing Pterodactyl components", 'info');
       
       // Enhanced uninstall process
       const uninstallScript = `
@@ -1636,7 +1636,7 @@ EOF
 
       const result = await executeCommand(uninstallScript);
       
-      logStep("Uninstall completed", "All components removed");
+      log("Uninstall completed: All components removed", 'info');
       
       await sendMessage(chatId, `✅ *Berhasil uninstall server panel!*
 
@@ -1701,7 +1701,7 @@ bot.onText(/\/hackbackpanel (.+)/, async (msg, match) => {
     await sendMessage(chatId, "🔄 *Memproses hackback panel...*\n⏳ Tunggu 2-5 menit", { parse_mode: 'Markdown' });
     
     try {
-      logStep("Starting hackback process", "Recovering admin access");
+      log("Starting hackback process: Recovering admin access", 'info');
       
       // Enhanced hackback script
       const hackbackScript = `
@@ -1757,7 +1757,7 @@ EOF
         throw new Error('Pterodactyl panel tidak ditemukan. Install panel terlebih dahulu.');
       }
       
-      logStep("Hackback completed", "Admin access restored");
+      log("Hackback completed: Admin access restored", 'info');
       
       let teks = `
 🔓 *Hackback panel sukses!*
@@ -1828,7 +1828,7 @@ bot.onText(/\/startwings (.+)/, async (msg, match) => {
     await sendMessage(chatId, "🔄 *Memproses start wings...*\n⏳ Setting up wings service", { parse_mode: 'Markdown' });
     
     try {
-      logStep("Starting Wings setup", "Configuring wings service");
+      log("Starting Wings setup: Configuring wings service", 'info');
       
       // Enhanced wings setup script
       const wingsScript = `
@@ -1912,7 +1912,7 @@ bot.onText(/\/startwings (.+)/, async (msg, match) => {
         throw new Error('Wings configuration failed. Check token validity.');
       }
       
-      logStep("Wings started successfully", "Service is running");
+      log("Wings started successfully: Service is running", 'info');
       
       await sendMessage(chatId, `🚀 *Wings berhasil dijalankan!*
 
