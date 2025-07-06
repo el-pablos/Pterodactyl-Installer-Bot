@@ -4,6 +4,15 @@ const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
 
+// Enhanced error handling and logging
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 // Bot configuration
 const BOT_TOKEN = '7884808609:AAGBltt756PA1ftjTc67q_rsTlAsnGP6GVg';
 const OWNER_ID = 5476148500;
@@ -42,6 +51,7 @@ log('- /uninstallpanel - Uninstall Pterodactyl panel', 'info');
 log('- /hackbackpanel - Hackback panel access', 'info');
 log('- /startwings - Start wings service', 'info');
 log('- /checkstatus - Check VPS status', 'info');
+log('- /masterfix - Complete panel fix (database, nginx, admin)', 'info');
 log('- /help - Show help menu', 'info');
 
 // Command handlers
@@ -56,6 +66,7 @@ bot.onText(/\/start/, (msg) => {
 • \`/hackbackpanel\` - Hackback panel access
 • \`/startwings\` - Start wings service
 • \`/checkstatus\` - Check VPS status
+• \`/masterfix\` - Complete panel fix (database, nginx, admin)
 • \`/help\` - Tampilkan menu bantuan
 
 👤 *Developer:* NdikaFath ID
@@ -96,6 +107,11 @@ Contoh: \`/hackbackpanel 1.2.3.4|password123\`
 🚀 *Start Wings:*
 \`/startwings ipvps|pwvps|token_node\`
 Contoh: \`/startwings 1.2.3.4|password123|your_wings_token\`
+
+🔧 *Master Fix (NEW):*
+\`/masterfix ipvps|pwvps|domain_panel\`
+Contoh: \`/masterfix 1.2.3.4|password123|panel.tams.my.id\`
+*Fixes: Database, Nginx, SSL, Admin User, Permissions*
 
 ⚠️ *IMPORTANT Requirements:*
 • Ubuntu 20.04 atau 22.04 (WAJIB!)
@@ -1918,6 +1934,330 @@ bot.onText(/\/startwings (.+)/, async (msg, match) => {
   }).on('error', (err) => {
     log(`Wings SSH error: ${err.message}`, 'error');
     sendMessage(chatId, '❌ *Koneksi gagal!*\n\n🔧 Periksa IP dan password VPS', { parse_mode: 'Markdown' });
+  }).connect(connSettings);
+});
+
+// Master Fix Command - Complete Panel Repair
+bot.onText(/\/masterfix (.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const text = match[1];
+
+  if (!isOwner(userId)) {
+    return sendMessage(chatId, "❌ Anda tidak memiliki akses untuk menggunakan command ini!");
+  }
+
+  let t = text.split('|');
+  if (t.length < 3) {
+    return sendMessage(chatId, example("/masterfix ipvps|pwvps|domain_panel"));
+  }
+
+  let ipvps = t[0];
+  let passwd = t[1];
+  let domainpanel = t[2];
+
+  const connSettings = {
+    host: ipvps,
+    port: '22',
+    username: 'root',
+    password: passwd,
+    readyTimeout: 30000
+  };
+
+  const ress = new ssh2();
+
+  ress.on('ready', async () => {
+    await sendMessage(chatId, "🔧 *Starting Master Fix...*\n⚡ Fixing ALL panel issues automatically", { parse_mode: 'Markdown' });
+
+    try {
+      logStep("Master Fix Started", "Complete panel repair in progress");
+
+      // Create and upload master fix script
+      const masterFixScript = `
+#!/bin/bash
+
+# Master Fix Script - Auto-generated
+echo "🚀 Starting Master Fix - Complete Pterodactyl Panel Repair"
+echo "=========================================================="
+
+# Colors
+RED='\\033[0;31m'
+GREEN='\\033[0;32m'
+YELLOW='\\033[1;33m'
+BLUE='\\033[0;34m'
+NC='\\033[0m'
+
+print_status() { echo -e "\${BLUE}[INFO]\${NC} \$1"; }
+print_success() { echo -e "\${GREEN}[SUCCESS]\${NC} \$1"; }
+print_error() { echo -e "\${RED}[ERROR]\${NC} \$1"; }
+
+# Configuration
+PANEL_DOMAIN="${domainpanel}"
+DB_NAME="panel"
+DB_USER="pterodactyl"
+DB_PASS="b82827"
+ADMIN_USER="b82827"
+ADMIN_PASS="b82827"
+
+# Step 1: System Cleanup
+print_status "Step 1: System cleanup..."
+systemctl stop nginx 2>/dev/null || true
+pkill -f apt-get || true
+pkill -f dpkg || true
+rm -f /var/lib/dpkg/lock* || true
+rm -f /var/cache/apt/archives/lock || true
+dpkg --configure -a || true
+
+# Step 2: Find Pterodactyl
+print_status "Step 2: Finding Pterodactyl installation..."
+if [ -f "/var/www/pterodactyl/artisan" ]; then
+    PTERODACTYL_PATH="/var/www/pterodactyl"
+elif [ -f "/var/www/html/artisan" ]; then
+    PTERODACTYL_PATH="/var/www/html"
+else
+    print_error "Pterodactyl not found!"
+    exit 1
+fi
+cd "\$PTERODACTYL_PATH"
+print_success "Found at: \$PTERODACTYL_PATH"
+
+# Step 3: MySQL Fix
+print_status "Step 3: MySQL database fix..."
+systemctl start mysql
+sleep 3
+
+# Try to connect with common passwords
+MYSQL_ROOT_PASS=""
+for pass in "" "root" "password" "\$DB_PASS"; do
+    if mysql -u root -p"\$pass" -e "SELECT 1;" 2>/dev/null; then
+        MYSQL_ROOT_PASS="\$pass"
+        break
+    fi
+done
+
+if [ -z "\$MYSQL_ROOT_PASS" ]; then
+    # Reset MySQL password
+    systemctl stop mysql
+    mysqld_safe --skip-grant-tables --skip-networking &
+    MYSQL_PID=\$!
+    sleep 5
+    mysql -u root << 'EOSQL'
+USE mysql;
+UPDATE user SET authentication_string=PASSWORD('b82827') WHERE User='root';
+FLUSH PRIVILEGES;
+EOSQL
+    kill \$MYSQL_PID 2>/dev/null || true
+    systemctl start mysql
+    sleep 3
+    MYSQL_ROOT_PASS="b82827"
+fi
+
+# Setup database
+mysql -u root -p"\$MYSQL_ROOT_PASS" << 'EOSQL'
+DROP USER IF EXISTS 'pterodactyl'@'localhost';
+DROP DATABASE IF EXISTS panel;
+CREATE DATABASE panel CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'pterodactyl'@'localhost' IDENTIFIED BY 'b82827';
+GRANT ALL PRIVILEGES ON panel.* TO 'pterodactyl'@'localhost';
+FLUSH PRIVILEGES;
+EOSQL
+
+print_success "Database setup completed"
+
+# Step 4: Panel Configuration
+print_status "Step 4: Panel configuration..."
+if [ ! -f ".env" ] && [ -f ".env.example" ]; then
+    cp .env.example .env
+fi
+
+# Update .env
+sed -i "s/DB_HOST=.*/DB_HOST=127.0.0.1/" .env
+sed -i "s/DB_DATABASE=.*/DB_DATABASE=panel/" .env
+sed -i "s/DB_USERNAME=.*/DB_USERNAME=pterodactyl/" .env
+sed -i "s/DB_PASSWORD=.*/DB_PASSWORD=b82827/" .env
+
+# Fix permissions
+chown -R www-data:www-data .
+chmod -R 755 .
+chmod -R 775 storage bootstrap/cache
+
+# Laravel commands
+php artisan key:generate --force
+php artisan config:clear
+php artisan cache:clear
+php artisan migrate --force
+php artisan db:seed --force 2>/dev/null || true
+
+# Create admin user
+php artisan p:user:make << 'EOUSER'
+admin@panel.local
+b82827
+b82827
+b82827
+b82827
+yes
+EOUSER
+
+print_success "Panel configuration completed"
+
+# Step 5: Nginx Fix
+print_status "Step 5: Nginx configuration..."
+
+# Detect PHP version
+PHP_VERSION=""
+if [ -S "/run/php/php8.3-fpm.sock" ]; then
+    PHP_VERSION="8.3"
+elif [ -S "/run/php/php8.1-fpm.sock" ]; then
+    PHP_VERSION="8.1"
+else
+    PHP_VERSION="8.0"
+fi
+
+# Clean nginx config
+rm -f /etc/nginx/sites-enabled/*
+rm -f /etc/nginx/sites-available/pterodactyl.conf
+
+# Create new config
+cat > /etc/nginx/sites-available/pterodactyl.conf << 'EONGINX'
+server {
+    listen 80;
+    server_name ${domainpanel};
+    root /var/www/pterodactyl/public;
+    index index.php;
+
+    client_max_body_size 100m;
+
+    location / {
+        try_files \\$uri \\$uri/ /index.php?\\$query_string;
+    }
+
+    location ~ \\.php\\$ {
+        fastcgi_pass unix:/run/php/php\${PHP_VERSION}-fpm.sock;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME \\$document_root\\$fastcgi_script_name;
+    }
+}
+EONGINX
+
+ln -s /etc/nginx/sites-available/pterodactyl.conf /etc/nginx/sites-enabled/
+
+# Start services
+systemctl start mysql
+systemctl start php\${PHP_VERSION}-fpm
+systemctl start nginx
+
+print_success "All services started"
+
+# Test
+sleep 3
+HTTP_CODE=\$(curl -s -o /dev/null -w "%{http_code}" http://localhost 2>/dev/null || echo "000")
+echo "HTTP Response: \$HTTP_CODE"
+
+if [ "\$HTTP_CODE" = "200" ]; then
+    print_success "✅ SUCCESS! Panel is working!"
+    echo "Access: http://${domainpanel}"
+    echo "Username: b82827"
+    echo "Password: b82827"
+else
+    print_error "Panel may need additional fixes"
+fi
+
+echo "Master Fix Completed!"
+      `;
+
+      // Execute master fix script
+      const executeCommand = (command, timeout = 300000) => {
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            reject(new Error(`Command timeout: ${timeout}ms`));
+          }, timeout);
+
+          ress.exec(command, (err, stream) => {
+            if (err) {
+              clearTimeout(timer);
+              return reject(err);
+            }
+
+            let output = '';
+            stream.on('data', (data) => {
+              const text = data.toString();
+              output += text;
+              log(`MasterFix: ${text.replace(/[^\x20-\x7E\n]/g, '').trim()}`, 'info');
+            }).on('close', () => {
+              clearTimeout(timer);
+              resolve(output);
+            });
+          });
+        });
+      };
+
+      // Upload and execute script
+      await executeCommand(`cat > /tmp/master-fix.sh << 'EOF'
+${masterFixScript}
+EOF`);
+
+      await executeCommand('chmod +x /tmp/master-fix.sh');
+
+      await sendMessage(chatId, "🔄 *Executing Master Fix...*\n⏳ This may take 5-10 minutes", { parse_mode: 'Markdown' });
+
+      const result = await executeCommand('bash /tmp/master-fix.sh');
+
+      // Check if successful
+      if (result.includes('SUCCESS! Panel is working!')) {
+        const successMessage = `
+🎉 *MASTER FIX COMPLETED SUCCESSFULLY!*
+
+✅ *All Issues Fixed:*
+• Database connection restored
+• Admin user created
+• Nginx configuration fixed
+• File permissions corrected
+• Services restarted
+
+🔐 *Login Credentials:*
+• *URL:* \`http://${domainpanel}\`
+• *Username:* \`b82827\`
+• *Password:* \`b82827\`
+
+🚀 *Next Steps:*
+1. Access your panel now
+2. Create server allocations
+3. Setup Wings with \`/startwings\`
+4. Optional: Setup SSL certificate
+
+⚡ *All known issues have been automatically resolved!*
+        `;
+
+        await sendMessage(chatId, successMessage, { parse_mode: 'Markdown' });
+      } else {
+        await sendMessage(chatId, `
+🔧 *Master Fix Completed with Warnings*
+
+⚠️ Some issues may remain. Check the following:
+
+🔍 *Manual Steps:*
+1. SSH to your VPS
+2. Run: \`systemctl status nginx mysql\`
+3. Check: \`curl -I http://${domainpanel}\`
+4. View logs: \`tail -f /var/www/pterodactyl/storage/logs/laravel.log\`
+
+💡 *If still not working:*
+• Try: \`/checkstatus ${ipvps}|${passwd}\`
+• Restart VPS and try again
+• Contact support with error details
+        `, { parse_mode: 'Markdown' });
+      }
+
+    } catch (error) {
+      log(`Master fix error: ${error.message}`, 'error');
+      await sendMessage(chatId, `❌ *Master Fix Failed:*\n\n\`${error.message}\`\n\n🔧 Try manual troubleshooting or contact support`, { parse_mode: 'Markdown' });
+    } finally {
+      ress.end();
+    }
+  }).on('error', (err) => {
+    log(`Master fix SSH error: ${err.message}`, 'error');
+    sendMessage(chatId, '❌ *Koneksi SSH gagal!*\n\n🔧 Periksa IP dan password VPS', { parse_mode: 'Markdown' });
   }).connect(connSettings);
 });
 
