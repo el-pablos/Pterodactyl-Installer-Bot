@@ -1833,19 +1833,81 @@ bot.onText(/\/startwings (.+)/, async (msg, match) => {
       // Enhanced wings setup script
       const wingsScript = `
         echo "🚀 Starting Wings configuration..."
-        
-        # Validate token format (basic check)
-        if [ \${#token} -lt 50 ]; then
-          echo "❌ Invalid token format (too short)"
-          exit 1
+
+        # Check if Wings is installed
+        if ! command -v wings &> /dev/null; then
+          echo "⚠️ Wings not found, installing..."
+
+          # Install Wings
+          mkdir -p /etc/pterodactyl
+          curl -L -o /usr/local/bin/wings "https://github.com/pterodactyl/wings/releases/latest/download/wings_linux_\$(dpkg --print-architecture)"
+          chmod u+x /usr/local/bin/wings
+
+          # Create systemd service
+          cat > /etc/systemd/system/wings.service << 'EOWINGS'
+[Unit]
+Description=Pterodactyl Wings Daemon
+After=docker.service
+Requires=docker.service
+PartOf=docker.service
+
+[Service]
+User=root
+WorkingDirectory=/etc/pterodactyl
+LimitNOFILE=4096
+PIDFile=/var/run/wings/daemon.pid
+ExecStart=/usr/local/bin/wings
+Restart=on-failure
+StartLimitInterval=180
+StartLimitBurst=30
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOWINGS
+
+          systemctl enable wings
+          echo "✅ Wings installed"
         fi
-        
+
         # Create pterodactyl directory if not exists
         mkdir -p /etc/pterodactyl
-        
-        # Configure wings with the token
-        echo "${token}" > /etc/pterodactyl/config.yml
-        
+
+        # Check token format - should be JWT or config YAML
+        if [[ "${token}" == *"eyJ"* ]] || [[ "${token}" == *"debug:"* ]]; then
+          echo "✅ Token format looks valid"
+        else
+          echo "⚠️ Warning: Token format may be incorrect"
+          echo "Expected: JWT token (starts with eyJ) or full YAML config"
+          echo "Received: ${token:0:50}..."
+        fi
+
+        # If token looks like JWT, create basic config
+        if [[ "${token}" == *"eyJ"* ]]; then
+          echo "Creating config from JWT token..."
+          cat > /etc/pterodactyl/config.yml << EOCONFIG
+debug: false
+uuid: \$(uuidgen)
+token_id: \$(uuidgen | cut -d'-' -f1)
+token: ${token}
+api:
+  host: 0.0.0.0
+  port: 8080
+  ssl:
+    enabled: false
+system:
+  data: /var/lib/pterodactyl/volumes
+  sftp:
+    bind_port: 2022
+allowed_mounts: []
+allowed_origins: []
+EOCONFIG
+        else
+          # Assume it's full config and write directly
+          echo "Writing full config..."
+          echo "${token}" > /etc/pterodactyl/config.yml
+        fi
+
         # Validate config file
         if [ ! -f /etc/pterodactyl/config.yml ]; then
           echo "❌ Failed to create config file"
