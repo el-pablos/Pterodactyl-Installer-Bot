@@ -1,0 +1,122 @@
+# ===================================
+# PTERODACTYL INSTALLER BOT GITIGNORE
+# ===================================
+
+# Node.js Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Environment & Configuration (CRITICAL - NEVER COMMIT)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+config.js
+bot-config.json
+
+# Sensitive Data (CRITICAL - NEVER COMMIT)
+*.key
+*.pem
+*.p12
+*.pfx
+ssh_keys/
+credentials/
+secrets/
+tokens/
+
+# Bot Logs & Runtime Data
+logs/
+*.log
+bot.log
+error.log
+debug.log
+install.log
+monitor.log
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE & Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.sublime-*
+
+# Runtime & Process Files
+*.pid
+*.seed
+*.pid.lock
+.npm
+.eslintcache
+
+# Coverage & Testing
+coverage/
+.nyc_output
+.coverage
+*.lcov
+
+# Build & Distribution
+dist/
+build/
+out/
+
+# Database Files (if any)
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup Files
+*.backup
+*.bak
+backup/
+backups/
+
+# VPS Connection Info (CRITICAL - NEVER COMMIT)
+vps-info.txt
+server-details.txt
+connection-logs/
+
+# Bot Session Data
+sessions/
+.session
+bot-session/
+
+# System Files
+.system
+.lock
+*.lock
+
+# ===================================
+# SAFE TO COMMIT (Documentation & Scripts)
+# ===================================
+# README.md ✅
+# CHANGELOG.md ✅
+# SOLUTION-GUIDE.md ✅
+# LICENSE ✅
+# package.json ✅ (without sensitive data)
+# bot.js ✅ (main bot file)
+# monitor.js ✅
+# *.sh scripts ✅
+# *.bat scripts ✅
+# Documentation files ✅

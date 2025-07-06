@@ -1,0 +1,80 @@
+{
+  "name": "pterodactyl-panel-installer-bot",
+  "version": "2.1.0",
+  "description": "Enhanced Telegram bot for installing Pterodactyl panel with APT lock resolution and cross-platform support",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "nodemon bot.js",
+    "monitor": "node monitor.js --scheduled",
+    "monitor-once": "node monitor.js --once",
+    "test": "echo \"Running bot tests...\" && node -c bot.js && echo \"✅ Syntax check passed\"",
+    "test-connection": "node -e \"const bot = require('./bot.js'); console.log('✅ Bot configuration test passed');\"",
+    "troubleshoot": "chmod +x troubleshoot.sh && ./troubleshoot.sh",
+    "manual-install": "chmod +x manual-install.sh && ./manual-install.sh",
+    "start-unix": "chmod +x start.sh && ./start.sh",
+    "start-windows": "start.bat",
+    "logs": "tail -f /var/log/pterodactyl-bot.log 2>/dev/null || echo 'No log file found'",
+    "check-deps": "npm ls --depth=0",
+    "update-deps": "npm update",
+    "clean": "rm -rf node_modules package-lock.json && npm install",
+    "fix-permissions": "chmod +x *.sh && echo 'Permissions fixed for shell scripts'"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cron": "^3.1.0",
+    "crypto": "^1.0.1",
+    "node-telegram-bot-api": "^0.66.0",
+    "request": "^2.88.2",
+    "ssh2": "^1.15.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "pterodactyl",
+    "panel",
+    "installer",
+    "automation",
+    "vps",
+    "server-management",
+    "cross-platform",
+    "apt-lock-resolution",
+    "enhanced-error-handling"
+  ],
+  "author": {
+    "name": "NdikaFath ID",
+    "email": "ndikafath@ndikafath.store",
+    "url": "https://github.com/ndikafath"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ndikafath/pterodactyl-installer-bot"
+  },
+  "bugs": {
+    "url": "https://github.com/ndikafath/pterodactyl-installer-bot/issues"
+  },
+  "homepage": "https://github.com/ndikafath/pterodactyl-installer-bot#readme",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "os": [
+    "linux",
+    "win32",
+    "darwin"
+  ],
+  "config": {
+    "supported_ubuntu": "20.04, 22.04",
+    "not_supported_ubuntu": "24.04, 24.10",
+    "min_ram": "2GB",
+    "min_disk": "20GB"
+  },
+  "directories": {
+    "doc": "./docs",
+    "test": "./tests"
+  }
+}
