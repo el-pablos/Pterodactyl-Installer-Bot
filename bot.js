@@ -1879,7 +1879,7 @@ EOWINGS
         else
           echo "⚠️ Warning: Token format may be incorrect"
           echo "Expected: JWT token (starts with eyJ) or full YAML config"
-          echo "Received: ${token:0:50}..."
+          echo "Received: \${token:0:50}..."
         fi
 
         # If token looks like JWT, create basic config
